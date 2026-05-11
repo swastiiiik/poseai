@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="40" fill="#080808"/>
+  <!-- Camera body -->
+  <rect x="28" y="68" width="136" height="92" rx="14" fill="none" stroke="#FFB347" stroke-width="7"/>
+  <!-- Lens outer -->
+  <circle cx="96" cy="114" r="30" fill="none" stroke="#FFB347" stroke-width="7"/>
+  <!-- Lens inner -->
+  <circle cx="96" cy="114" r="16" fill="#FFB347" opacity="0.85"/>
+  <!-- Viewfinder bump -->
+  <rect x="74" y="50" width="44" height="22" rx="7" fill="none" stroke="#FFB347" stroke-width="6"/>
+  <!-- Flash dot -->
+  <circle cx="148" cy="87" r="7" fill="#FFB347"/>
+</svg>
