@@ -1,892 +1,1182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="PoseAI">
-  <meta name="theme-color" content="#080808">
-  <link rel="manifest" href="./manifest.json">
-  <link rel="apple-touch-icon" href="./icon.svg">
-  <title>PoseAI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PoseAI">
+<meta name="theme-color" content="#080808">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon.svg">
+<title>PoseAI — Camera Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --a:#FFB347;--g:#4ADE80;--r:#FF6B6B;
+  --glass:rgba(8,8,8,.58);--rim:rgba(255,255,255,.1);
+  --cream:#F5F0EB;--muted:rgba(245,240,235,.5);
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)
+}
+html,body{height:100%;width:100%;overflow:hidden;background:#000;
+  font-family:'DM Sans',sans-serif;color:var(--cream);
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none}
 
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* CAMERA */
+#cam-wrap{position:fixed;inset:0;background:#000}
+#cam{width:100%;height:100%;object-fit:cover;display:block}
 
-    :root {
-      --amber:  #FFB347;
-      --coral:  #FF6B6B;
-      --glass:  rgba(8, 8, 8, 0.52);
-      --rim:    rgba(255, 255, 255, 0.11);
-      --cream:  #F5F0EB;
-      --muted:  rgba(245, 240, 235, 0.55);
-      --safe-t: env(safe-area-inset-top,    0px);
-      --safe-b: env(safe-area-inset-bottom, 0px);
-    }
+/* GRID */
+#grid{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .3s}
+#grid.on{opacity:1}
+#grid svg{width:100%;height:100%}
 
-    html, body {
-      height: 100%; width: 100%;
-      overflow: hidden;
-      background: #000;
-      font-family: 'DM Sans', sans-serif;
-      color: var(--cream);
-      -webkit-font-smoothing: antialiased;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      -webkit-user-select: none;
-    }
+/* SILHOUETTE */
+#sil-wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;z-index:5;opacity:0;transition:opacity .5s}
+#sil-wrap.on{opacity:1}
+#sil-wrap svg{height:60%;width:auto;color:rgba(255,255,255,.26);
+  animation:silPulse 3s ease-in-out infinite;
+  filter:drop-shadow(0 0 16px rgba(255,179,71,.25))}
+@keyframes silPulse{0%,100%{opacity:.65}50%{opacity:1;filter:drop-shadow(0 0 24px rgba(255,179,71,.55))}}
 
-    /* ── Camera ── */
-    #camera-wrap {
-      position: fixed; inset: 0;
-      background: #000;
-    }
-    #camera-feed {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      display: block;
-    }
+/* DIRECTIONAL ARROWS */
+.d-arrow{position:fixed;z-index:30;font-size:56px;opacity:0;pointer-events:none;
+  transition:opacity .4s;text-shadow:0 0 24px rgba(255,179,71,.9);line-height:1}
+.d-arrow.on{opacity:1}
+#arr-l{left:14px;top:50%;transform:translateY(-50%);animation:bounceL 1.2s ease-in-out infinite}
+#arr-r{right:14px;top:50%;transform:translateY(-50%);animation:bounceR 1.2s ease-in-out infinite}
+#arr-u{top:calc(var(--st) + 82px);left:50%;transform:translateX(-50%);animation:bounceU 1.2s ease-in-out infinite}
+#arr-d{bottom:370px;left:50%;transform:translateX(-50%);animation:bounceD 1.2s ease-in-out infinite}
+@keyframes bounceL{0%,100%{transform:translateY(-50%) translateX(0)}50%{transform:translateY(-50%) translateX(-10px)}}
+@keyframes bounceR{0%,100%{transform:translateY(-50%) translateX(0)}50%{transform:translateY(-50%) translateX(10px)}}
+@keyframes bounceU{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-10px)}}
+@keyframes bounceD{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(10px)}}
 
-    /* ── Rule-of-thirds grid ── */
-    #grid {
-      position: fixed; inset: 0;
-      pointer-events: none; z-index: 4;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    #grid.on { opacity: 1; }
-    #grid svg { width: 100%; height: 100%; }
+/* GRADIENTS */
+.grad-t{position:fixed;top:0;left:0;right:0;height:210px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.76) 0%,transparent 100%);
+  pointer-events:none;z-index:8}
+.grad-b{position:fixed;bottom:0;left:0;right:0;height:430px;
+  background:linear-gradient(to top,rgba(0,0,0,.92) 0%,transparent 100%);
+  pointer-events:none;z-index:8}
 
-    /* ── Gradients ── */
-    .grad-top {
-      position: fixed; top: 0; left: 0; right: 0;
-      height: 220px;
-      background: linear-gradient(to bottom, rgba(0,0,0,.72) 0%, transparent 100%);
-      pointer-events: none; z-index: 8;
-    }
-    .grad-bot {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      height: 380px;
-      background: linear-gradient(to top, rgba(0,0,0,.85) 0%, transparent 100%);
-      pointer-events: none; z-index: 8;
-    }
+/* TOP BAR */
+#top-bar{position:fixed;top:0;left:0;right:0;
+  padding:calc(var(--st) + 12px) 13px 10px;
+  z-index:20;display:flex;align-items:center;gap:8px}
+#loc-pill{display:flex;align-items:center;gap:6px;
+  background:var(--glass);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  border:1px solid var(--rim);border-radius:100px;
+  padding:7px 13px 7px 10px;flex:1;min-width:0;overflow:hidden}
+#loc-icon{font-size:13px;flex-shrink:0}
+#loc-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+#loc-badge{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--a);background:rgba(255,179,71,.14);border:1px solid rgba(255,179,71,.28);
+  padding:2px 8px;border-radius:100px;flex-shrink:0;display:none}
+#score-badge{flex-shrink:0;font-size:11px;font-weight:700;letter-spacing:.04em;
+  background:var(--glass);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  border:1px solid var(--rim);border-radius:100px;
+  padding:6px 11px;color:var(--a);display:none;white-space:nowrap}
+#score-badge.on{display:flex;align-items:center;gap:5px}
+.score-num{font-family:'Abril Fatface',serif;font-size:15px;color:var(--a)}
+.score-dots{font-size:9px;letter-spacing:1px}
+.top-btn{width:42px;height:42px;border-radius:50%;
+  background:var(--glass);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  border:1px solid var(--rim);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:17px;flex-shrink:0;
+  transition:transform .2s,background .2s}
+.top-btn:active{transform:scale(.88);background:rgba(255,179,71,.18)}
+#grid-btn.on{border-color:rgba(255,179,71,.5);background:rgba(255,179,71,.18)}
 
-    /* ── Top bar ── */
-    #top-bar {
-      position: fixed; top: 0; left: 0; right: 0;
-      padding: calc(var(--safe-t) + 14px) 16px 12px;
-      z-index: 20;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
+/* ANALYZING BADGE */
+#analyzing{position:fixed;top:calc(var(--st) + 68px);left:50%;transform:translateX(-50%);
+  background:rgba(255,179,71,.96);color:#000;
+  padding:7px 18px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;z-index:50;opacity:0;pointer-events:none;transition:opacity .3s}
+#analyzing.on{opacity:1}
+#analyzing::after{content:'';animation:dots 1.4s infinite}
+@keyframes dots{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
 
-    #loc-pill {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      background: var(--glass);
-      backdrop-filter: blur(22px);
-      -webkit-backdrop-filter: blur(22px);
-      border: 1px solid var(--rim);
-      border-radius: 100px;
-      padding: 8px 14px 8px 12px;
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-    }
-    #loc-icon { font-size: 14px; flex-shrink: 0; }
-    #loc-name {
-      font-size: 13px; font-weight: 500;
-      white-space: nowrap; overflow: hidden;
-      text-overflow: ellipsis;
-      flex: 1;
-    }
-    #loc-badge {
-      font-size: 9px; font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--amber);
-      background: rgba(255,179,71,.15);
-      border: 1px solid rgba(255,179,71,.28);
-      padding: 3px 8px;
-      border-radius: 100px;
-      flex-shrink: 0;
-      display: none;
-    }
+/* BOTTOM UI */
+#bottom-ui{position:fixed;bottom:0;left:0;right:0;
+  padding:0 13px calc(var(--sb) + 14px);z-index:20}
 
-    .top-btn {
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      background: var(--glass);
-      backdrop-filter: blur(22px);
-      -webkit-backdrop-filter: blur(22px);
-      border: 1px solid var(--rim);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-size: 19px;
-      flex-shrink: 0;
-      transition: transform .2s, background .2s;
-    }
-    .top-btn:active { transform: scale(.88); background: rgba(255,179,71,.18); }
-    #grid-btn.on { border-color: rgba(255,179,71,.5); background: rgba(255,179,71,.18); }
+/* ── COACH PANEL ── */
+#coach-panel{display:none}
+#coach-panel.on{display:block}
 
-    /* ── Bottom UI ── */
-    #bottom-ui {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      padding: 0 16px calc(var(--safe-b) + 20px);
-      z-index: 20;
-    }
+#primary-wrap{
+  background:var(--glass);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  border:1px solid var(--rim);border-radius:18px;
+  padding:14px 16px 12px;margin-bottom:10px}
+#primary-text{
+  font-family:'Abril Fatface',serif;font-size:22px;line-height:1.15;
+  color:var(--cream);margin-bottom:10px;min-height:28px}
+.tip-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+.tip-row:last-child{margin-bottom:0}
+.tip-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.tip-text{font-size:12px;font-weight:300;line-height:1.55;color:rgba(245,240,235,.78);flex:1}
+#coach-meta{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.meta-chip{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  padding:3px 8px;border-radius:100px;border:1px solid}
+.chip-good{color:var(--g);background:rgba(74,222,128,.1);border-color:rgba(74,222,128,.3)}
+.chip-warn{color:var(--a);background:rgba(255,179,71,.1);border-color:rgba(255,179,71,.3)}
+.chip-bad{color:var(--r);background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.3)}
+#idle-msg{font-size:13px;font-weight:300;color:var(--muted);
+  text-align:center;padding:8px 0 4px}
 
-    /* ── Pose card ── */
-    #pose-wrap {
-      overflow: hidden;
-      border-radius: 20px;
-      margin-bottom: 14px;
-      touch-action: pan-y;
-    }
-    .pose-card {
-      background: var(--glass);
-      backdrop-filter: blur(26px);
-      -webkit-backdrop-filter: blur(26px);
-      border: 1px solid var(--rim);
-      border-radius: 20px;
-      padding: 16px 18px 16px;
-      will-change: transform, opacity;
-      transition: transform .38s cubic-bezier(.34,1.36,.64,1), opacity .28s ease;
-    }
-    .pose-card.slide-in-right  { animation: fromRight .38s cubic-bezier(.34,1.36,.64,1) both; }
-    .pose-card.slide-in-left   { animation: fromLeft  .38s cubic-bezier(.34,1.36,.64,1) both; }
-    @keyframes fromRight { from { transform: translateX(60%); opacity: 0; } to { transform: none; opacity: 1; } }
-    @keyframes fromLeft  { from { transform: translateX(-60%); opacity: 0; } to { transform: none; opacity: 1; } }
+#coach-controls{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cc-btn{display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--rim);border-radius:16px;
+  padding:9px 18px;cursor:pointer;
+  transition:transform .15s,background .2s,border-color .2s;min-width:72px}
+.cc-btn:active{transform:scale(.91);background:rgba(255,179,71,.18)}
+.cc-btn.active{border-color:rgba(255,179,71,.5);background:rgba(255,179,71,.12)}
+.cc-icon{font-size:18px}
+.cc-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.cc-btn.active .cc-label{color:var(--a)}
+#auto-btn.pulsing{animation:autoPulse 1.5s ease-in-out infinite}
+@keyframes autoPulse{0%,100%{border-color:rgba(255,179,71,.3)}50%{border-color:rgba(255,179,71,.7)}}
 
-    .card-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      margin-bottom: 9px;
-    }
-    .pose-name {
-      font-family: 'Abril Fatface', serif;
-      font-size: 21px;
-      line-height: 1.1;
-      color: var(--cream);
-      flex: 1;
-      margin-right: 10px;
-    }
-    .pose-mood {
-      font-size: 9px; font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--amber);
-      background: rgba(255,179,71,.13);
-      border: 1px solid rgba(255,179,71,.3);
-      padding: 4px 10px;
-      border-radius: 100px;
-      flex-shrink: 0;
-      margin-top: 3px;
-    }
-    .pose-tip {
-      font-size: 13px; font-weight: 300;
-      line-height: 1.65;
-      color: rgba(245,240,235,.8);
-    }
-    .card-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 10px;
-    }
-    .pose-counter {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 0.05em;
-    }
-    .refresh-btn {
-      font-size: 11px;
-      color: var(--amber);
-      cursor: pointer;
-      letter-spacing: 0.04em;
-      padding: 4px 8px;
-      border-radius: 8px;
-      transition: background .15s;
-    }
-    .refresh-btn:active { background: rgba(255,179,71,.15); }
+#shutter-coach{width:72px;height:72px;border-radius:50%;
+  background:rgba(255,255,255,.96);border:5px solid rgba(255,255,255,.3);
+  cursor:pointer;transition:transform .14s;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#shutter-coach::after{content:'';width:58px;height:58px;border-radius:50%;background:#fff;position:absolute}
+#shutter-coach:active{transform:scale(.87)}
 
-    /* ── Dots ── */
-    #dots {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-      margin-bottom: 12px;
-    }
-    .dot {
-      width: 5px; height: 5px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.28);
-      cursor: pointer;
-      transition: all .3s;
-    }
-    .dot.on {
-      background: var(--amber);
-      width: 18px;
-      border-radius: 3px;
-    }
+/* ── GPS PANEL ── */
+#gps-panel{display:none}
+#gps-panel.on{display:block}
+#pose-wrap{overflow:hidden;border-radius:18px;margin-bottom:10px;touch-action:pan-y}
+.pose-card{
+  background:var(--glass);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  border:1px solid var(--rim);border-radius:18px;padding:14px 16px 12px}
+.pose-card.slide-in-right{animation:fmR .36s cubic-bezier(.34,1.36,.64,1) both}
+.pose-card.slide-in-left{animation:fmL .36s cubic-bezier(.34,1.36,.64,1) both}
+@keyframes fmR{from{transform:translateX(55%);opacity:0}}
+@keyframes fmL{from{transform:translateX(-55%);opacity:0}}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:7px}
+.pose-name{font-family:'Abril Fatface',serif;font-size:20px;line-height:1.1;flex:1;margin-right:10px}
+.pose-mood{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--a);background:rgba(255,179,71,.13);border:1px solid rgba(255,179,71,.3);
+  padding:4px 10px;border-radius:100px;flex-shrink:0;margin-top:3px}
+.subj-tip{font-size:13px;font-weight:300;line-height:1.62;color:rgba(245,240,235,.82)}
+.divider{border:none;border-top:1px solid rgba(255,255,255,.08);margin:10px 0 0}
+.ptip-toggle{display:flex;align-items:center;justify-content:space-between;
+  padding:9px 0 0;cursor:pointer;color:var(--a)}
+.ptip-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.ptip-arr{font-size:13px;transition:transform .3s}
+.ptip-toggle.open .ptip-arr{transform:rotate(180deg)}
+.ptip-sec{max-height:0;overflow:hidden;transition:max-height .4s ease,opacity .3s;opacity:0}
+.ptip-sec.open{max-height:220px;opacity:1}
+.ptip-inner{padding:10px 0 2px;display:flex;gap:12px;align-items:flex-start}
+.cam-diag{flex-shrink:0}.cam-diag svg{width:80px;display:block}
+.cam-lbls{margin-top:5px;display:flex;flex-direction:column;gap:3px}
+.cam-lbl{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.cam-lbl span{color:var(--a);margin-left:3px}
+.ptip-txt{font-size:12px;font-weight:300;line-height:1.65;color:rgba(245,240,235,.75);flex:1}
+.card-ft{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.pose-ctr{font-size:11px;color:var(--muted)}
+.shuf-btn{font-size:11px;color:var(--a);cursor:pointer;padding:4px 8px;border-radius:8px;
+  transition:background .15s}
+.shuf-btn:active{background:rgba(255,179,71,.15)}
+#dots{display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:10px}
+.dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer;transition:all .3s}
+.dot.on{background:var(--a);width:18px;border-radius:3px}
+#gps-shutter-row{display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.arr-btn{width:50px;height:50px;border-radius:50%;
+  background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--rim);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:22px;color:var(--cream);
+  transition:transform .15s,background .15s}
+.arr-btn:active{transform:scale(.86);background:rgba(255,179,71,.18)}
+#shutter-gps{width:72px;height:72px;border-radius:50%;
+  background:rgba(255,255,255,.96);border:5px solid rgba(255,255,255,.3);
+  cursor:pointer;transition:transform .14s;
+  position:relative;display:flex;align-items:center;justify-content:center;margin:0 24px}
+#shutter-gps::after{content:'';width:58px;height:58px;border-radius:50%;background:#fff;position:absolute}
+#shutter-gps:active{transform:scale(.87)}
+#gps-actions{display:flex;align-items:center;justify-content:space-between;padding:0 6px}
+.act-btn{display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--rim);border-radius:16px;padding:9px 18px;cursor:pointer;
+  transition:transform .15s,background .2s,border-color .2s}
+.act-btn:active{transform:scale(.92);background:rgba(255,179,71,.18)}
+.act-btn.active{border-color:rgba(255,179,71,.5);background:rgba(255,179,71,.12)}
+.act-icon{font-size:18px}
+.act-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.act-btn.active .act-label{color:var(--a)}
 
-    /* ── Swipe hint ── */
-    #swipe-hint {
-      text-align: center;
-      font-size: 11px;
-      color: rgba(255,255,255,.28);
-      letter-spacing: 0.04em;
-      margin-bottom: 12px;
-      transition: opacity .5s;
-    }
+/* SETTINGS SHEET */
+#settings{position:fixed;bottom:0;left:0;right:0;
+  background:#141414;border-radius:24px 24px 0 0;
+  padding:28px 20px calc(var(--sb) + 28px);
+  z-index:200;
+  transform:translateY(100%);transition:transform .4s cubic-bezier(.34,1.1,.64,1)}
+#settings.open{transform:translateY(0)}
+#settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:190;
+  opacity:0;pointer-events:none;transition:opacity .3s}
+#settings-overlay.on{opacity:1;pointer-events:all}
+.sh-handle{width:40px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;
+  margin:0 auto 22px}
+.sh-title{font-family:'Abril Fatface',serif;font-size:24px;margin-bottom:6px}
+.sh-sub{font-size:13px;font-weight:300;color:var(--muted);line-height:1.55;margin-bottom:20px}
+.sh-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px}
+#key-input{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
+  border-radius:12px;padding:14px 16px;font-family:'DM Sans',sans-serif;
+  font-size:14px;color:var(--cream);outline:none;margin-bottom:6px;
+  -webkit-appearance:none}
+#key-input:focus{border-color:rgba(255,179,71,.5);background:rgba(255,179,71,.05)}
+.sh-hint{font-size:11px;color:var(--muted);margin-bottom:18px;line-height:1.5}
+.sh-hint strong{color:var(--a)}
+.sh-err{font-size:12px;color:var(--r);min-height:18px;margin-bottom:8px}
+.sh-btn{width:100%;padding:15px;border-radius:14px;border:none;cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;
+  transition:transform .15s,opacity .2s;margin-bottom:10px}
+.sh-btn:active{transform:scale(.97)}
+.sh-save{background:var(--a);color:#000}
+.sh-clear{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:var(--cream)}
 
-    /* ── Shutter row ── */
-    #shutter-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 36px;
-    }
-    .arr-btn {
-      width: 54px; height: 54px;
-      border-radius: 50%;
-      background: var(--glass);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--rim);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      font-size: 22px; color: var(--cream);
-      transition: transform .15s, background .15s;
-    }
-    .arr-btn:active { transform: scale(.86); background: rgba(255,179,71,.18); }
+/* FLASH */
+#flash{position:fixed;inset:0;background:#fff;z-index:90;opacity:0;pointer-events:none;transition:opacity .05s}
+#flash.on{opacity:1}
 
-    #shutter {
-      width: 82px; height: 82px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.96);
-      border: 5px solid rgba(255,255,255,.3);
-      cursor: pointer;
-      transition: transform .14s;
-      position: relative;
-      display: flex; align-items: center; justify-content: center;
-    }
-    #shutter::after {
-      content: '';
-      width: 66px; height: 66px;
-      border-radius: 50%;
-      background: #fff;
-      position: absolute;
-    }
-    #shutter:active { transform: scale(.86); }
+/* PREVIEW */
+#preview{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.97);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+  opacity:0;pointer-events:none;transition:opacity .3s}
+#preview.on{opacity:1;pointer-events:all}
+#preview img{max-width:100%;max-height:62vh;border-radius:14px;object-fit:contain;
+  box-shadow:0 32px 80px rgba(0,0,0,.8)}
+.pv-hint{font-size:12px;color:var(--muted);text-align:center;margin-top:16px;
+  line-height:1.6;max-width:280px}
+#pv-btns{display:flex;gap:12px;margin-top:18px}
+.pv-btn{padding:13px 26px;border-radius:100px;font-family:'DM Sans',sans-serif;
+  font-size:14px;font-weight:600;cursor:pointer;border:none;transition:transform .14s}
+.pv-btn:active{transform:scale(.94)}
+.pv-close{background:var(--glass);border:1px solid var(--rim);color:var(--cream);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.pv-open{background:var(--a);color:#000}
 
-    /* ── Flash ── */
-    #flash {
-      position: fixed; inset: 0;
-      background: #fff;
-      z-index: 90;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .05s;
-    }
-    #flash.on { opacity: 1; }
+/* TOAST */
+#toast{position:fixed;top:calc(var(--st) + 70px);left:50%;transform:translateX(-50%);
+  background:rgba(255,179,71,.97);color:#000;
+  padding:9px 20px;border-radius:100px;font-size:12px;font-weight:700;
+  z-index:60;opacity:0;pointer-events:none;transition:opacity .3s;
+  white-space:nowrap;letter-spacing:.02em}
+#toast.on{opacity:1}
 
-    /* ── Preview ── */
-    #preview {
-      position: fixed; inset: 0;
-      z-index: 100;
-      background: rgba(0,0,0,.97);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 24px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .3s;
-    }
-    #preview.on { opacity: 1; pointer-events: all; }
-    #preview img {
-      max-width: 100%; max-height: 62vh;
-      border-radius: 16px;
-      object-fit: contain;
-      box-shadow: 0 32px 80px rgba(0,0,0,.8);
-    }
-    .preview-label {
-      font-size: 12px;
-      color: var(--muted);
-      text-align: center;
-      margin-top: 18px;
-      line-height: 1.6;
-      max-width: 280px;
-    }
-    #preview-btns {
-      display: flex;
-      gap: 12px;
-      margin-top: 20px;
-    }
-    .pv-btn {
-      padding: 14px 28px;
-      border-radius: 100px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px; font-weight: 600;
-      cursor: pointer; border: none;
-      transition: transform .14s;
-    }
-    .pv-btn:active { transform: scale(.94); }
-    .pv-save { background: var(--amber); color: #000; }
-    .pv-close { background: var(--glass); border: 1px solid var(--rim); color: var(--cream);
-                backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+/* LOADING */
+#loading{position:fixed;inset:0;background:#080808;z-index:300;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .5s}
+#loading.out{opacity:0;pointer-events:none}
+.logo-t{font-family:'Abril Fatface',serif;font-size:52px;color:var(--cream)}
+.logo-s{font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--muted);margin-top:4px;margin-bottom:52px}
+.spin{width:38px;height:38px;border:2px solid rgba(255,179,71,.2);
+  border-top-color:var(--a);border-radius:50%;animation:spin .75s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#load-msg{font-size:13px;color:var(--muted);margin-top:16px;text-align:center;
+  max-width:240px;min-height:36px}
 
-    /* ── Loading ── */
-    #loading {
-      position: fixed; inset: 0;
-      background: #080808; z-index: 200;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 0;
-      transition: opacity .5s;
-    }
-    #loading.out { opacity: 0; pointer-events: none; }
-    .logo-text {
-      font-family: 'Abril Fatface', serif;
-      font-size: 52px;
-      color: var(--cream);
-      letter-spacing: -1px;
-    }
-    .logo-sub {
-      font-size: 11px; font-weight: 500;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-top: 4px;
-      margin-bottom: 52px;
-    }
-    .spin {
-      width: 38px; height: 38px;
-      border: 2px solid rgba(255,179,71,.2);
-      border-top-color: var(--amber);
-      border-radius: 50%;
-      animation: spin .75s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #load-msg {
-      font-size: 13px; color: var(--muted);
-      margin-top: 16px;
-      text-align: center;
-      max-width: 240px;
-      min-height: 36px;
-    }
-
-    /* ── Error ── */
-    #err-screen {
-      position: fixed; inset: 0;
-      background: #080808; z-index: 200;
-      display: none; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 40px; text-align: center;
-    }
-    #err-screen.on { display: flex; }
-    .err-icon { font-size: 60px; margin-bottom: 22px; }
-    .err-title { font-family: 'Abril Fatface', serif; font-size: 28px; margin-bottom: 12px; }
-    .err-body { font-size: 14px; line-height: 1.65; color: var(--muted); margin-bottom: 32px; max-width: 300px; }
-    .retry-btn {
-      padding: 16px 36px;
-      border-radius: 100px;
-      background: var(--amber); color: #000;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 15px; font-weight: 700;
-      cursor: pointer; border: none;
-      transition: transform .15s;
-    }
-    .retry-btn:active { transform: scale(.94); }
-
-    /* ── Hidden canvas ── */
-    #cap-canvas { display: none; }
-  </style>
+/* ERROR */
+#err{position:fixed;inset:0;background:#080808;z-index:300;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px;text-align:center}
+#err.on{display:flex}
+.err-icon{font-size:60px;margin-bottom:22px}
+.err-title{font-family:'Abril Fatface',serif;font-size:28px;margin-bottom:12px}
+.err-body{font-size:14px;line-height:1.65;color:var(--muted);margin-bottom:32px;max-width:300px}
+.retry-btn{padding:16px 36px;border-radius:100px;background:var(--a);color:#000;
+  font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;border:none}
+#cap-canvas{display:none}
+</style>
 </head>
 <body>
 
-<!-- Loading -->
+<!-- LOADING -->
 <div id="loading">
-  <div class="logo-text">PoseAI</div>
-  <div class="logo-sub">Know your shot</div>
+  <div class="logo-t">PoseAI</div>
+  <div class="logo-s">Camera Coach</div>
   <div class="spin"></div>
   <div id="load-msg">Starting camera…</div>
 </div>
 
-<!-- Error -->
-<div id="err-screen">
+<!-- ERROR -->
+<div id="err">
   <div class="err-icon">📸</div>
   <div class="err-title">Permissions Needed</div>
-  <div class="err-body">PoseAI needs your camera and location to suggest the right poses. Please tap Try Again and allow both when Safari asks.</div>
+  <div class="err-body">PoseAI needs camera and location access. Tap Try Again and allow both when Safari asks.</div>
   <button class="retry-btn" onclick="boot()">Try Again</button>
 </div>
 
-<!-- Flash -->
 <div id="flash"></div>
+<div id="toast"></div>
+<div id="analyzing">Analyzing</div>
 
-<!-- Camera -->
-<div id="camera-wrap">
-  <video id="camera-feed" autoplay playsinline muted></video>
-</div>
+<!-- CAMERA -->
+<div id="cam-wrap"><video id="cam" autoplay playsinline muted></video></div>
 
-<!-- Rule-of-thirds grid -->
+<!-- GRID -->
 <div id="grid">
   <svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Vertical lines -->
-    <line x1="33.33" y1="0" x2="33.33" y2="100" stroke="rgba(255,255,255,0.25)" stroke-width="0.15"/>
-    <line x1="66.66" y1="0" x2="66.66" y2="100" stroke="rgba(255,255,255,0.25)" stroke-width="0.15"/>
-    <!-- Horizontal lines -->
-    <line x1="0" y1="33.33" x2="100" y2="33.33" stroke="rgba(255,255,255,0.25)" stroke-width="0.3"/>
-    <line x1="0" y1="66.66" x2="100" y2="66.66" stroke="rgba(255,255,255,0.25)" stroke-width="0.3"/>
-    <!-- Intersection dots -->
-    <circle cx="33.33" cy="33.33" r="0.7" fill="rgba(255,179,71,0.7)"/>
-    <circle cx="66.66" cy="33.33" r="0.7" fill="rgba(255,179,71,0.7)"/>
-    <circle cx="33.33" cy="66.66" r="0.7" fill="rgba(255,179,71,0.7)"/>
-    <circle cx="66.66" cy="66.66" r="0.7" fill="rgba(255,179,71,0.7)"/>
+    <line x1="33.33" y1="0" x2="33.33" y2="100" stroke="rgba(255,255,255,.2)" stroke-width=".12"/>
+    <line x1="66.66" y1="0" x2="66.66" y2="100" stroke="rgba(255,255,255,.2)" stroke-width=".12"/>
+    <line x1="0" y1="33.33" x2="100" y2="33.33" stroke="rgba(255,255,255,.2)" stroke-width=".25"/>
+    <line x1="0" y1="66.66" x2="100" y2="66.66" stroke="rgba(255,255,255,.2)" stroke-width=".25"/>
+    <circle cx="33.33" cy="33.33" r=".6" fill="rgba(255,179,71,.7)"/>
+    <circle cx="66.66" cy="33.33" r=".6" fill="rgba(255,179,71,.7)"/>
+    <circle cx="33.33" cy="66.66" r=".6" fill="rgba(255,179,71,.7)"/>
+    <circle cx="66.66" cy="66.66" r=".6" fill="rgba(255,179,71,.7)"/>
   </svg>
 </div>
 
-<!-- Gradients -->
-<div class="grad-top"></div>
-<div class="grad-bot"></div>
+<!-- SILHOUETTE -->
+<div id="sil-wrap"></div>
 
-<!-- Top bar -->
+<!-- DIRECTIONAL ARROWS -->
+<div class="d-arrow" id="arr-l">←</div>
+<div class="d-arrow" id="arr-r">→</div>
+<div class="d-arrow" id="arr-u">↑</div>
+<div class="d-arrow" id="arr-d">↓</div>
+
+<!-- GRADIENTS -->
+<div class="grad-t"></div>
+<div class="grad-b"></div>
+
+<!-- TOP BAR -->
 <div id="top-bar">
   <div id="loc-pill">
     <span id="loc-icon">📍</span>
     <span id="loc-name">Locating…</span>
     <span id="loc-badge"></span>
   </div>
-  <div class="top-btn" id="grid-btn" onclick="toggleGrid()" title="Rule of thirds grid">⊞</div>
-  <div class="top-btn" id="flip-btn" onclick="flipCamera()" title="Flip camera">🔄</div>
+  <div id="score-badge">
+    <span class="score-num" id="score-num">—</span>
+    <span class="score-dots" id="score-dots"></span>
+  </div>
+  <div class="top-btn" id="settings-btn" onclick="openSettings()">⚙️</div>
+  <div class="top-btn" id="grid-btn" onclick="toggleGrid()">⊞</div>
+  <div class="top-btn" onclick="flipCamera()">🔄</div>
 </div>
 
-<!-- Bottom UI -->
+<!-- BOTTOM UI -->
 <div id="bottom-ui">
-  <div id="pose-wrap">
-    <!-- Pose card injected here -->
+
+  <!-- COACH PANEL (AI mode) -->
+  <div id="coach-panel">
+    <div id="primary-wrap">
+      <div id="primary-text">Point camera at a scene…</div>
+      <div id="idle-msg" style="display:none">Tap Analyze or enable Auto to start coaching</div>
+      <div id="tip-rows" style="display:none">
+        <div class="tip-row" id="pose-tip-row">
+          <span class="tip-icon">👤</span>
+          <span class="tip-text" id="pose-tip-txt"></span>
+        </div>
+        <div class="tip-row" id="cam-tip-row">
+          <span class="tip-icon">📷</span>
+          <span class="tip-text" id="cam-tip-txt"></span>
+        </div>
+      </div>
+      <div id="coach-meta"></div>
+    </div>
+    <div id="coach-controls">
+      <div class="cc-btn" id="auto-btn" onclick="toggleAuto()">
+        <span class="cc-icon">⏱</span>
+        <span class="cc-label" id="auto-label">AUTO</span>
+      </div>
+      <div id="shutter-coach" onclick="capturePhoto()"></div>
+      <div class="cc-btn" id="analyze-btn" onclick="manualAnalyze()">
+        <span class="cc-icon">🔍</span>
+        <span class="cc-label">ANALYZE</span>
+      </div>
+    </div>
   </div>
-  <div id="swipe-hint">← swipe card to browse poses →</div>
-  <div id="dots"></div>
-  <div id="shutter-row">
-    <div class="arr-btn" id="prev-btn" onclick="prevPose()">‹</div>
-    <div id="shutter" onclick="capturePhoto()"></div>
-    <div class="arr-btn" id="next-btn" onclick="nextPose()">›</div>
+
+  <!-- GPS PANEL (fallback mode) -->
+  <div id="gps-panel">
+    <div id="pose-wrap"></div>
+    <div id="dots"></div>
+    <div id="gps-shutter-row">
+      <div class="arr-btn" onclick="prevPose()">‹</div>
+      <div id="shutter-gps" onclick="capturePhoto()"></div>
+      <div class="arr-btn" onclick="nextPose()">›</div>
+    </div>
+    <div id="gps-actions">
+      <div class="act-btn" id="sil-btn" onclick="toggleSil()">
+        <span class="act-icon">👤</span>
+        <span class="act-label">Pose Guide</span>
+      </div>
+      <div class="act-btn" onclick="openSettings()">
+        <span class="act-icon">🤖</span>
+        <span class="act-label">Enable AI</span>
+      </div>
+    </div>
   </div>
+
+</div><!-- /bottom-ui -->
+
+<!-- SETTINGS SHEET -->
+<div id="settings-overlay" onclick="closeSettings()"></div>
+<div id="settings">
+  <div class="sh-handle"></div>
+  <div class="sh-title">AI Camera Coach</div>
+  <div class="sh-sub">Enter your Anthropic API key to enable real-time AI coaching — it analyzes your actual camera feed and tells you exactly where to move, how to pose, and how to shoot.</div>
+  <div class="sh-label">Anthropic API Key</div>
+  <input type="password" id="key-input" placeholder="sk-ant-api03-…" autocomplete="off" autocorrect="off" spellcheck="false">
+  <div class="sh-hint">Get a free key at <strong>console.anthropic.com</strong> → API Keys. Your key is stored only on this device.</div>
+  <div class="sh-err" id="sh-err"></div>
+  <button class="sh-btn sh-save" onclick="saveKey()">Save & Start Coaching →</button>
+  <button class="sh-btn sh-clear" onclick="clearKey()">Clear Key (use GPS mode only)</button>
 </div>
 
-<!-- Photo preview -->
+<!-- PHOTO PREVIEW -->
 <div id="preview">
-  <img id="preview-img" src="" alt="Captured photo">
-  <p class="preview-label">On iPhone: long-press the photo above, then tap <strong>"Add to Photos"</strong> to save it to your camera roll.</p>
-  <div id="preview-btns">
+  <img id="preview-img" src="" alt="Photo">
+  <p class="pv-hint">Long-press the photo above → tap <strong>"Add to Photos"</strong> to save to your camera roll.</p>
+  <div id="pv-btns">
     <button class="pv-btn pv-close" onclick="closePreview()">Retake</button>
-    <button class="pv-btn pv-save" onclick="openFull()">Open Full Size</button>
+    <button class="pv-btn pv-open" onclick="openFull()">Open Full Size</button>
   </div>
 </div>
 
 <canvas id="cap-canvas"></canvas>
 
 <script>
-// =====================================================================
-// POSE DATABASE  (location-aware)
-// =====================================================================
-const POSES = {
-  beach: [
-    { name: "Shoreline Silhouette", mood: "Dreamy",      tip: "Stand sideways at the water's edge with arms loosely raised. Let the horizon bisect the frame at mid-body. Look away from the camera toward the open sea." },
-    { name: "Wave Runner",          mood: "Playful",     tip: "Run parallel to an incoming wave, mid-stride with arms swinging back. Ask your photographer to shoot so the water blurs but your face stays sharp." },
-    { name: "Sand Write",           mood: "Intimate",    tip: "Kneel and write something in wet sand. Photographer shoots directly overhead. Stunning for couples — write both your names." },
-    { name: "Golden Gaze",          mood: "Candid",      tip: "Sit on the sand, knees drawn up. Look off toward the water, not the camera. Let natural sunlight create a warm rim of light along your silhouette." },
-    { name: "Horizon Stretch",      mood: "Epic",        tip: "Spread your arms wide like wings and face the sea. Have your photographer crouch slightly below to shoot upward — it fills the frame with sky and water." }
-  ],
-  urban: [
-    { name: "The Lean",         mood: "Cool",       tip: "Lean back against a textured wall — brick, concrete or tile. Cross one ankle over the other. Hands in pockets. Look off-frame to the side, not at the lens." },
-    { name: "Crosswalk Strut",  mood: "Editorial",  tip: "Walk confidently toward the camera on a crosswalk or empty street. Don't look at the lens. Chin slightly down, mid-stride. Think magazine cover." },
-    { name: "Staircase Drama",  mood: "Cinematic",  tip: "Sit on outdoor steps with one elbow on your knee, chin resting on your fist. Let the converging lines of the staircase create depth behind you." },
-    { name: "Reflection Play",  mood: "Artistic",   tip: "Find a glass building or still puddle. Position yourself so your reflection and real self are both in the same frame — a powerful visual double." },
-    { name: "Alley Frame",      mood: "Moody",      tip: "Stand at the far end of a narrow alley or corridor. Photographer shoots from the entrance, using the tunnel effect to draw every eye to you." }
-  ],
-  nature: [
-    { name: "Forest Bathing",    mood: "Ethereal",    tip: "Tilt your head back with eyes closed or looking up through the tree canopy. Arms spread gently. Photographer shoots from below to capture leaves framing your face." },
-    { name: "The Wander",        mood: "Soulful",     tip: "Walk away from the camera down a natural trail — don't look back. The path and foliage create a natural vignette around your silhouette." },
-    { name: "Petal Spin",        mood: "Whimsical",   tip: "Spin slowly in a flower field or under a blooming tree. Motion blur at the edges versus your sharp face creates a beautiful, painterly effect." },
-    { name: "Rock Perch",        mood: "Serene",      tip: "Sit on a large rock or fallen log with one leg dangling. Look into the distance with completely relaxed posture — no smile required." },
-    { name: "Stream Crossing",   mood: "Adventurous", tip: "Capture yourself mid-step on stepping stones across water, arms out for balance. The water below and surrounding greenery bring it alive." }
-  ],
-  cultural: [
-    { name: "The Thinker",     mood: "Intellectual", tip: "Stand before a large artwork or exhibit with arms loosely crossed. Look at the art, not the camera. Let your genuine engagement become the subject." },
-    { name: "Grand Arch",      mood: "Majestic",     tip: "Stand centered under an archway or grand entrance. Photographer crouches low and shoots upward — this makes you look monumental against the architecture." },
-    { name: "Gallery Walk",    mood: "Candid",       tip: "Walk slowly past artworks in profile view. Let the art blur behind you while you stay sharp. Natural, unrehearsed, effortlessly beautiful." },
-    { name: "Monument Scale",  mood: "Epic",         tip: "Stand small and human against an enormous structure and look up at it. The scale contrast communicates awe without needing any posing at all." },
-    { name: "Staircase Sweep", mood: "Dramatic",     tip: "On a grand staircase, try shooting from below (looking up) and from above (looking down). One hand on the railing, body angled 45° to the camera." }
-  ],
-  mountain: [
-    { name: "Summit Arms",      mood: "Triumphant",  tip: "At a peak or ridge, open your arms wide and face the valley below. Photographer stands slightly behind and below you to include the stunning view." },
-    { name: "Trail Gazer",      mood: "Explorer",    tip: "Stand at a natural viewpoint, one foot on a rock. Raise one hand to shade your eyes as you look into the distance. Classic, powerful, timeless." },
-    { name: "Misty Silhouette", mood: "Mystical",    tip: "Stand against a foggy valley or clouded backdrop as a pure silhouette. No face detail needed — the shape and atmosphere tell the whole story." },
-    { name: "The Perch",        mood: "Daring",      tip: "Sit safely on the edge of a rock ledge with your feet dangling over the view below. Look out, never at the camera. The drop creates natural drama." },
-    { name: "Pack & Go",        mood: "Wanderlust",  tip: "Shot from behind as you walk away into the landscape with your backpack — ideally at golden hour. The journey itself becomes the subject." }
-  ],
-  cafe: [
-    { name: "The Contemplator", mood: "Cozy",      tip: "Both hands wrapped around your cup. Eyes cast slightly down or sideways. Use only window light — switch off overhead lighting if possible." },
-    { name: "Table Story",      mood: "Lifestyle", tip: "Overhead flat-lay: arrange your drink, food, book and accessories. Include your hands in frame to add warmth and a lived-in human feel." },
-    { name: "Window Gaze",      mood: "Pensive",   tip: "Sit by the window and look outside. Warm interior light will catch your profile in beautiful contrast against the cooler world beyond the glass." },
-    { name: "The Laugh",        mood: "Joyful",    tip: "Look away from camera mid-laugh, reacting to something off-frame. Feels spontaneous, genuine, and irresistibly warm. The best shots are never posed." },
-    { name: "Book & Brew",      mood: "Chic",      tip: "Hold a book or menu loosely in front of you. Look over or around it toward the camera with a relaxed half-smile. Effortlessly editorial." }
-  ],
-  shopping: [
-    { name: "Bag Drop",       mood: "Candid",   tip: "Walk out of a store with bags in hand, not looking at the camera. Catch yourself mid-step in that natural, confident post-shopping stride." },
-    { name: "Window Glance",  mood: "Dreamy",   tip: "Look into a shop window display in profile. Your reflection in the glass creates a layered visual depth that feels straight off a magazine cover." },
-    { name: "The Browse",     mood: "Natural",  tip: "Casually hold something you're 'deciding' on with a thoughtful expression. Don't look at the camera. It should feel like a moment stolen, not posed." }
-  ],
-  default: [
-    { name: "45° Profile",        mood: "Timeless",    tip: "Turn 45° from the camera and look into the middle distance. Chin slightly forward and down — this is universally flattering for any face shape." },
-    { name: "Environmental",      mood: "Authentic",   tip: "Don't pose — just exist in your space. Let the photographer find you doing something natural: reading, looking away, just thinking." },
-    { name: "Over-Shoulder",      mood: "Playful",     tip: "Walk away, then look back over your shoulder at the camera with a natural smile or serious look. Works in virtually any setting or lighting." },
-    { name: "Low Angle Power",    mood: "Bold",        tip: "Stand tall with straight posture. Have the photographer shoot from hip height looking up slightly. You'll look confident, tall, and in command." },
-    { name: "The Candid Laugh",   mood: "Warm",        tip: "Interact naturally and let the photographer catch a real moment of laughter or joy. These unposed shots always outperform forced smiles." }
-  ]
+// ════════════════════════════════════════════════════════════
+// SILHOUETTES
+// ════════════════════════════════════════════════════════════
+const SILS={
+portrait:`<svg viewBox="0 0 100 200" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="50" cy="13" rx="12" ry="12"/>
+  <rect x="45" y="24" width="10" height="8" rx="2"/>
+  <path d="M30 32 C28 55 30 78 32 98 L68 98 C70 78 72 55 70 32 C62 28 38 28 30 32Z"/>
+  <path d="M30 40 C22 62 20 82 22 104 C25 107 29 106 30 103 C29 83 30 63 37 48Z"/>
+  <path d="M70 40 C78 62 80 82 78 104 C75 107 71 106 70 103 C71 83 70 63 63 48Z"/>
+  <path d="M35 97 L32 152 Q31 160 37 162 Q43 163 45 156 L48 101Z"/>
+  <ellipse cx="36" cy="163" rx="11" ry="5"/>
+  <path d="M65 97 L68 152 Q69 160 63 162 Q57 163 55 156 L52 101Z"/>
+  <ellipse cx="64" cy="163" rx="11" ry="5"/>
+</svg>`,
+power:`<svg viewBox="0 0 160 200" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="80" cy="13" rx="12" ry="12"/>
+  <rect x="75" y="24" width="10" height="8" rx="2"/>
+  <path d="M60 32 C58 55 60 78 62 98 L98 98 C100 78 102 55 100 32 C92 28 68 28 60 32Z"/>
+  <path d="M61 42 L10 72 Q7 77 10 82 Q14 86 18 83 L65 55Z"/>
+  <path d="M99 42 L150 72 Q153 77 150 82 Q146 86 142 83 L95 55Z"/>
+  <path d="M65 97 L61 152 Q60 160 66 162 Q72 163 74 156 L77 101Z"/>
+  <ellipse cx="63" cy="163" rx="11" ry="5"/>
+  <path d="M95 97 L99 152 Q100 160 94 162 Q88 163 86 156 L83 101Z"/>
+  <ellipse cx="97" cy="163" rx="11" ry="5"/>
+</svg>`,
+sitting:`<svg viewBox="0 0 120 180" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="50" cy="13" rx="12" ry="12"/>
+  <rect x="45" y="24" width="10" height="8" rx="2"/>
+  <path d="M30 32 C28 55 30 75 32 90 L68 90 C70 75 72 55 70 32 C62 28 38 28 30 32Z"/>
+  <path d="M30 42 C20 62 18 78 20 94 C23 97 27 96 28 93 C27 78 28 62 36 50Z"/>
+  <path d="M70 42 C78 60 80 76 78 93 C75 96 71 95 70 92 C70 76 68 60 62 50Z"/>
+  <path d="M33 88 L28 108 L90 112 L90 90Z"/>
+  <path d="M28 108 L25 148 Q24 155 30 157 Q36 158 38 152 L42 112Z"/>
+  <ellipse cx="30" cy="158" rx="12" ry="5"/>
+  <path d="M67 90 L70 108 L100 108 L100 97 L68 90Z"/>
+  <path d="M100 97 L104 140 Q105 148 99 150 Q93 151 91 145 L87 106Z"/>
+  <ellipse cx="97" cy="152" rx="12" ry="5"/>
+</svg>`,
+lean:`<svg viewBox="0 0 100 200" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(50,100) rotate(-12) translate(-50,-100)">
+    <ellipse cx="50" cy="13" rx="12" ry="12"/>
+    <rect x="45" y="24" width="10" height="8" rx="2"/>
+    <path d="M30 32 C28 55 30 78 32 98 L68 98 C70 78 72 55 70 32 C62 28 38 28 30 32Z"/>
+    <path d="M30 38 C16 50 10 68 12 88 C15 91 20 90 21 87 C20 68 26 52 37 44Z"/>
+    <path d="M70 40 C78 62 80 82 78 104 C75 107 71 106 70 103 C71 83 70 63 63 48Z"/>
+    <path d="M35 97 L32 155 Q31 162 37 164 Q43 165 45 158 L48 101Z"/>
+    <ellipse cx="35" cy="166" rx="11" ry="5"/>
+    <path d="M65 97 L68 155 Q69 162 63 164 Q57 165 55 158 L52 101Z"/>
+    <ellipse cx="65" cy="166" rx="11" ry="5"/>
+  </g>
+</svg>`,
+away:`<svg viewBox="0 0 100 200" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="50" cy="13" rx="13" ry="12"/>
+  <rect x="43" y="23" width="14" height="9" rx="3"/>
+  <path d="M23 32 C21 55 24 78 26 98 L74 98 C76 78 79 55 77 32 C68 26 32 26 23 32Z"/>
+  <path d="M25 40 C15 62 13 82 15 105 C18 108 23 107 24 104 C23 83 24 62 32 49Z"/>
+  <path d="M75 40 C83 62 85 82 83 105 C80 108 76 107 75 104 C75 83 73 62 68 49Z"/>
+  <path d="M34 97 L28 152 Q27 160 33 162 Q39 164 43 157 L46 101Z"/>
+  <ellipse cx="32" cy="164" rx="13" ry="5"/>
+  <path d="M66 97 L72 152 Q73 160 67 162 Q61 164 57 157 L54 101Z"/>
+  <ellipse cx="68" cy="164" rx="13" ry="5"/>
+</svg>`,
+kneel:`<svg viewBox="0 0 100 165" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="50" cy="14" rx="12" ry="12"/>
+  <rect x="45" y="25" width="10" height="8" rx="2"/>
+  <path d="M30 33 C28 53 30 72 32 88 L68 88 C70 72 72 53 70 33 C62 28 38 28 30 33Z"/>
+  <path d="M30 42 C18 56 14 72 16 90 C19 93 24 92 25 89 C24 73 27 58 36 48Z"/>
+  <path d="M70 42 C82 56 86 72 84 90 C81 93 76 92 75 89 C76 73 73 58 64 48Z"/>
+  <path d="M33 87 L28 118 L54 121 L54 90Z"/>
+  <path d="M67 87 L72 118 L98 118 L94 90Z"/>
+  <path d="M28 118 L22 138 L58 141 L58 121Z"/>
+  <path d="M72 118 L76 138 L110 138 L106 121Z"/>
+  <ellipse cx="55" cy="142" rx="48" ry="6" opacity="0.2"/>
+</svg>`};
+
+// ════════════════════════════════════════════════════════════
+// GPS POSE DATA
+// ════════════════════════════════════════════════════════════
+const POSES={
+beach:[
+  {name:"Shoreline Silhouette",mood:"Dreamy",sil:"portrait",
+   tip:"Stand sideways at the water's edge, arms loosely raised. Look away toward the open sea.",
+   pTip:"Crouch to sand level. Subject on left third, horizon behind. Shoot into the light. Widest angle.",
+   cam:{h:'low',p:'left',z:'wide'}},
+  {name:"Wave Runner",mood:"Playful",sil:"away",
+   tip:"Run parallel to an incoming wave mid-stride. Face stays sharp, water blurs.",
+   pTip:"Burst mode. Eye level, center. Pre-focus on where they'll pass. Fastest shutter.",
+   cam:{h:'eye',p:'center',z:'medium'}},
+  {name:"Horizon Stretch",mood:"Epic",sil:"power",
+   tip:"Spread arms wide like wings and face the sea. Full silhouette against sky and water.",
+   pTip:"Crouch very low, center subject. Horizon at or below their waist. Widest lens.",
+   cam:{h:'low',p:'center',z:'wide'}},
+  {name:"Golden Gaze",mood:"Candid",sil:"sitting",
+   tip:"Sit on sand, knees drawn up. Look toward the water — not the camera.",
+   pTip:"Sit/crouch at subject level. Right third. Side-on to sun. Close zoom.",
+   cam:{h:'low',p:'right',z:'close'}},
+  {name:"Sand Write",mood:"Intimate",sil:"kneel",
+   tip:"Kneel and write in wet sand. Photographer shoots directly overhead.",
+   pTip:"Stand directly above, shoot straight down. Center the scene. Wide angle.",
+   cam:{h:'high',p:'center',z:'wide'}}
+],
+urban:[
+  {name:"The Lean",mood:"Cool",sil:"lean",
+   tip:"Lean against a textured wall. Cross one ankle over the other. Hands in pockets, look off-frame.",
+   pTip:"3–4m back, eye level. Subject left third — wall texture fills the rest. Medium zoom.",
+   cam:{h:'eye',p:'left',z:'medium'}},
+  {name:"Crosswalk Strut",mood:"Editorial",sil:"away",
+   tip:"Walk confidently toward camera. Chin slightly down, mid-stride. Don't look at lens.",
+   pTip:"Crouch on crosswalk, shoot upward from knee height. Center. Burst. Wide angle.",
+   cam:{h:'low',p:'center',z:'wide'}},
+  {name:"Alley Frame",mood:"Moody",sil:"portrait",
+   tip:"Stand at the far end of a narrow alley. The tunnel draws every eye to you.",
+   pTip:"Shoot from the entrance straight through. Subject dead center. Slightly longer zoom.",
+   cam:{h:'eye',p:'center',z:'close'}},
+  {name:"Reflection Play",mood:"Artistic",sil:"portrait",
+   tip:"Find a glass building or puddle. Position so reflection and real self are both in frame.",
+   pTip:"Adjust angle until both reflection and subject are equally sharp. Eye level. Center.",
+   cam:{h:'eye',p:'center',z:'medium'}},
+  {name:"Staircase Drama",mood:"Cinematic",sil:"sitting",
+   tip:"Sit on outdoor steps, one elbow on knee, chin on fist. Converging lines = depth.",
+   pTip:"Stand at bottom, shoot upward. Subject right third, stairs converging behind. Medium zoom.",
+   cam:{h:'low',p:'right',z:'medium'}}
+],
+nature:[
+  {name:"Forest Bathing",mood:"Ethereal",sil:"power",
+   tip:"Head back, eyes closed or looking up through the tree canopy. Arms spread gently.",
+   pTip:"Lie on ground or crouch very low, shoot straight up past subject into canopy. Wide angle.",
+   cam:{h:'low',p:'center',z:'wide'}},
+  {name:"The Wander",mood:"Soulful",sil:"away",
+   tip:"Walk away down a natural trail. Don't look back. The path frames you perfectly.",
+   pTip:"Stay 12–15m behind. Center on path. Eye level. Shoot at golden hour.",
+   cam:{h:'eye',p:'center',z:'medium'}},
+  {name:"Rock Perch",mood:"Serene",sil:"sitting",
+   tip:"Sit on a large rock with one leg dangling. Look into the distance — no smile required.",
+   pTip:"Position to the side, slightly below subject. Right third against landscape. Medium zoom.",
+   cam:{h:'eye',p:'right',z:'medium'}},
+  {name:"Petal Spin",mood:"Whimsical",sil:"power",
+   tip:"Spin slowly in a flower field. Motion blur at the edges vs your sharp face.",
+   pTip:"1/60s shutter — blurs flowers, freezes face. Burst mode. Pan with the spin. Center.",
+   cam:{h:'eye',p:'center',z:'medium'}},
+  {name:"Stream Crossing",mood:"Adventurous",sil:"portrait",
+   tip:"Mid-step on stepping stones, arms out for balance. Water and greenery bring it to life.",
+   pTip:"Crouch at water level on the bank. Include water reflection below. Wide angle. Left third.",
+   cam:{h:'low',p:'left',z:'wide'}}
+],
+cultural:[
+  {name:"Grand Arch",mood:"Majestic",sil:"portrait",
+   tip:"Stand centered directly under a grand archway or entrance. Architecture frames you.",
+   pTip:"Crouch low outside the arch, shoot steeply upward. Center subject in arch. Wide angle.",
+   cam:{h:'low',p:'center',z:'wide'}},
+  {name:"The Thinker",mood:"Intellectual",sil:"lean",
+   tip:"Stand before artwork, arms loosely crossed. Look at the art — not the camera.",
+   pTip:"Shoot from the side at eye level. Subject left third, artwork identifiable right. Medium.",
+   cam:{h:'eye',p:'left',z:'medium'}},
+  {name:"Monument Scale",mood:"Epic",sil:"portrait",
+   tip:"Stand small and human against an enormous structure. Looking up at it says everything.",
+   pTip:"Step far back, wide angle to fit both structure and tiny subject. Center at the base.",
+   cam:{h:'eye',p:'center',z:'wide'}},
+  {name:"Gallery Walk",mood:"Candid",sil:"away",
+   tip:"Walk slowly past artworks in profile. Art blurs softly behind, you stay sharp.",
+   pTip:"Perpendicular to their path, eye level. Left third walking right. Burst. Close zoom.",
+   cam:{h:'eye',p:'left',z:'close'}},
+  {name:"Staircase Sweep",mood:"Dramatic",sil:"sitting",
+   tip:"On a grand staircase, one hand on the railing, body 45° to camera.",
+   pTip:"Shoot from very bottom looking steeply up. Subject follows the rail line. Medium zoom.",
+   cam:{h:'low',p:'right',z:'medium'}}
+],
+mountain:[
+  {name:"Summit Arms",mood:"Triumphant",sil:"power",
+   tip:"At a peak or ridge, open arms wide and face the valley below.",
+   pTip:"Crouch below and behind, subject facing you with valley behind. Knee height. Wide angle.",
+   cam:{h:'low',p:'center',z:'wide'}},
+  {name:"Misty Silhouette",mood:"Mystical",sil:"portrait",
+   tip:"Stand against fog or cloud as a pure silhouette. The shape alone tells the story.",
+   pTip:"Expose for bright background so subject goes dark. Shoot slightly upward. Wide angle.",
+   cam:{h:'low',p:'center',z:'wide'}},
+  {name:"The Perch",mood:"Daring",sil:"sitting",
+   tip:"Sit safely on a rock ledge, feet dangling over the view. Look out — never at camera.",
+   pTip:"Shoot from the side at subject level. Include the drop below their feet. Right third.",
+   cam:{h:'eye',p:'right',z:'medium'}},
+  {name:"Trail Gazer",mood:"Explorer",sil:"lean",
+   tip:"One foot on a rock, hand raised to shade your eyes as you look into the distance.",
+   pTip:"Side view, slightly below subject. Left third — open landscape on the right. Medium.",
+   cam:{h:'eye',p:'left',z:'medium'}},
+  {name:"Pack & Go",mood:"Wanderlust",sil:"away",
+   tip:"Walking away into the landscape with your backpack. The journey is the subject.",
+   pTip:"15–20m behind. Center on trail. Eye level. Golden hour creates a natural halo.",
+   cam:{h:'eye',p:'center',z:'medium'}}
+],
+cafe:[
+  {name:"The Contemplator",mood:"Cozy",sil:"sitting",
+   tip:"Both hands around your cup. Eyes cast slightly down. Window light only.",
+   pTip:"Across table at table level. Subject left third, window behind. Close zoom.",
+   cam:{h:'eye',p:'left',z:'close'}},
+  {name:"Window Gaze",mood:"Pensive",sil:"sitting",
+   tip:"Sit by the window and look outside. Interior light catches your profile beautifully.",
+   pTip:"Slightly behind subject, camera past their profile toward the window. Right third. Close.",
+   cam:{h:'eye',p:'right',z:'close'}},
+  {name:"The Laugh",mood:"Joyful",sil:"sitting",
+   tip:"Look away mid-laugh, reacting to someone off-frame. The best shots are never posed.",
+   pTip:"Burst mode. Make them laugh genuinely. Center, eye level. 2-second window per laugh.",
+   cam:{h:'eye',p:'center',z:'close'}},
+  {name:"Table Story",mood:"Lifestyle",sil:"kneel",
+   tip:"Overhead flat-lay: arrange drink, food, book artfully. Include your hands in frame.",
+   pTip:"Stand on chair, shoot straight down. Center everything. As wide as your lens allows.",
+   cam:{h:'high',p:'center',z:'wide'}},
+  {name:"Book & Brew",mood:"Chic",sil:"sitting",
+   tip:"Hold a book or menu loosely. Look over it toward camera with a relaxed half-smile.",
+   pTip:"Straight across the table. Eye level. Slightly off-center. Book = natural lower element.",
+   cam:{h:'eye',p:'center',z:'medium'}}
+],
+shopping:[
+  {name:"Bag Drop",mood:"Candid",sil:"away",
+   tip:"Walk out of a store with bags, not looking at camera. That natural post-shopping stride.",
+   pTip:"Outside entrance, camera at hip level pointing up. Burst as subject exits. Wide.",
+   cam:{h:'low',p:'center',z:'wide'}},
+  {name:"Window Glance",mood:"Dreamy",sil:"lean",
+   tip:"Look into a shop window in profile. Your reflection creates layered, magazine-cover depth.",
+   pTip:"45° to the glass, capture both subject and reflection simultaneously. Eye level.",
+   cam:{h:'eye',p:'left',z:'medium'}},
+  {name:"The Browse",mood:"Natural",sil:"portrait",
+   tip:"Casually hold something you're considering. Don't look at the camera. A stolen moment.",
+   pTip:"Candidly from conversational distance. Center, eye level. Store context soft focus behind.",
+   cam:{h:'eye',p:'center',z:'close'}}
+],
+default:[
+  {name:"45° Profile",mood:"Timeless",sil:"portrait",
+   tip:"Turn 45° from camera, look into the middle distance. Chin slightly forward and down.",
+   pTip:"Slightly below eye level, aimed upward. Subject left third. Medium zoom. Works everywhere.",
+   cam:{h:'low',p:'left',z:'medium'}},
+  {name:"Environmental",mood:"Authentic",sil:"lean",
+   tip:"Don't pose — just exist. Let the photographer find you doing something natural.",
+   pTip:"Don't instruct the subject. Move quietly. Find where face, light, and environment align.",
+   cam:{h:'eye',p:'center',z:'medium'}},
+  {name:"Over-Shoulder",mood:"Playful",sil:"away",
+   tip:"Walk away, then look back over your shoulder with a natural expression.",
+   pTip:"6–8m behind. Center. When they look back, fire burst. Eye level.",
+   cam:{h:'eye',p:'center',z:'medium'}},
+  {name:"Low Angle Power",mood:"Bold",sil:"portrait",
+   tip:"Stand tall with perfect posture. Photographer shoots from hip height looking up.",
+   pTip:"Camera at hip height, tilt upward ~20°. Center. Very wide angle. 1–2m away.",
+   cam:{h:'low',p:'center',z:'wide'}},
+  {name:"Candid Laugh",mood:"Warm",sil:"portrait",
+   tip:"Interact naturally and let the photographer catch a real moment of joy.",
+   pTip:"Pre-focus. Start genuine conversation. Burst the moment real laughter starts. Close zoom.",
+   cam:{h:'eye',p:'center',z:'close'}}
+]};
+
+const CAT_META={
+  beach:{icon:'🏖️',label:'Beach'},urban:{icon:'🏙️',label:'Urban'},
+  nature:{icon:'🌿',label:'Nature'},cultural:{icon:'🏛️',label:'Cultural'},
+  mountain:{icon:'⛰️',label:'Mountain'},cafe:{icon:'☕',label:'Café'},
+  shopping:{icon:'🛍️',label:'Shopping'},default:{icon:'📍',label:'General'}
 };
 
-const CAT_META = {
-  beach:    { icon: '🏖️', label: 'Beach'    },
-  urban:    { icon: '🏙️', label: 'Urban'    },
-  nature:   { icon: '🌿', label: 'Nature'   },
-  cultural: { icon: '🏛️', label: 'Cultural' },
-  mountain: { icon: '⛰️', label: 'Mountain' },
-  cafe:     { icon: '☕', label: 'Café'     },
-  shopping: { icon: '🛍️', label: 'Shopping' },
-  default:  { icon: '📍', label: 'General'  }
-};
-
-// =====================================================================
+// ════════════════════════════════════════════════════════════
 // STATE
-// =====================================================================
-let stream        = null;
-let facing        = 'environment';
-let category      = 'default';
-let poseIdx       = 0;
-let capturedUrl   = null;
-let hintShown     = false;
-let swipeX0       = 0;
-let swipeY0       = 0;
-let gridOn        = false;
+// ════════════════════════════════════════════════════════════
+let apiKey=localStorage.getItem('poseai_key')||'';
+let stream=null,facing='environment';
+let analyzing=false,autoMode=false,autoTimer=null;
+let gridOn=false,silOn=false;
+let category='default',poseIdx=0;
+let capturedUrl=null,swipeX0=0,swipeY0=0;
+let toastTimer=null;
+let lastAnalysis=null;
 
-// =====================================================================
+// ════════════════════════════════════════════════════════════
 // BOOT
-// =====================================================================
-async function boot() {
-  document.getElementById('err-screen').classList.remove('on');
+// ════════════════════════════════════════════════════════════
+async function boot(){
+  document.getElementById('err').classList.remove('on');
   document.getElementById('loading').classList.remove('out');
   setMsg('Starting camera…');
-
-  try {
-    await startCamera();
-  } catch(e) {
-    console.error(e);
-    showErr();
-    return;
-  }
+  try{await startCamera();}
+  catch(e){console.error(e);showErr();return;}
 
   setMsg('Detecting your location…');
+  try{await detectLocation();}
+  catch(e){console.warn(e);applyCategory('default');setLocDisplay('Location unavailable',null);}
 
-  try {
-    await detectLocation();
-  } catch(e) {
-    console.warn('Location failed:', e);
-    applyCategory('default');
-    setLocDisplay('Location unavailable', null);
+  // Show the right panel
+  if(apiKey){
+    document.getElementById('coach-panel').classList.add('on');
+    document.getElementById('gps-panel').classList.remove('on');
+    document.getElementById('idle-msg').style.display='block';
+    document.getElementById('primary-text').style.display='none';
+  }else{
+    document.getElementById('gps-panel').classList.add('on');
+    document.getElementById('coach-panel').classList.remove('on');
   }
 
-  setTimeout(() => document.getElementById('loading').classList.add('out'), 400);
+  setTimeout(()=>document.getElementById('loading').classList.add('out'),400);
 }
+function setMsg(t){document.getElementById('load-msg').textContent=t;}
+function showErr(){document.getElementById('loading').classList.add('out');document.getElementById('err').classList.add('on');}
 
-function setMsg(t) { document.getElementById('load-msg').textContent = t; }
-
-function showErr() {
-  document.getElementById('loading').classList.add('out');
-  document.getElementById('err-screen').classList.add('on');
-}
-
-// =====================================================================
+// ════════════════════════════════════════════════════════════
 // CAMERA
-// =====================================================================
-async function startCamera() {
-  if (stream) stream.getTracks().forEach(t => t.stop());
-
-  stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: { ideal: facing },
-      width:  { ideal: 1920 },
-      height: { ideal: 1080 }
-    },
-    audio: false
+// ════════════════════════════════════════════════════════════
+async function startCamera(){
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  stream=await navigator.mediaDevices.getUserMedia({
+    video:{facingMode:{ideal:facing},width:{ideal:1920},height:{ideal:1080}},audio:false
   });
-
-  const v = document.getElementById('camera-feed');
-  v.srcObject = stream;
-  await new Promise(res => { v.onloadedmetadata = () => { v.play(); res(); }; });
+  const v=document.getElementById('cam');
+  v.srcObject=stream;
+  await new Promise(res=>{v.onloadedmetadata=()=>{v.play();res();};});
+}
+async function flipCamera(){
+  facing=facing==='environment'?'user':'environment';
+  const b=document.getElementById('top-bar').lastElementChild;
+  b.style.transform='rotate(180deg)';setTimeout(()=>b.style.transform='',350);
+  try{await startCamera();}
+  catch(e){facing=facing==='environment'?'user':'environment';await startCamera();}
+}
+function toggleGrid(){
+  gridOn=!gridOn;
+  document.getElementById('grid').classList.toggle('on',gridOn);
+  document.getElementById('grid-btn').classList.toggle('on',gridOn);
 }
 
-async function flipCamera() {
-  facing = facing === 'environment' ? 'user' : 'environment';
-  const btn = document.getElementById('flip-btn');
-  btn.style.transform = 'rotate(180deg)';
-  setTimeout(() => btn.style.transform = '', 350);
-  try {
-    await startCamera();
-  } catch(e) {
-    facing = facing === 'environment' ? 'user' : 'environment'; // revert
-    await startCamera();
+// ════════════════════════════════════════════════════════════
+// SETTINGS / API KEY
+// ════════════════════════════════════════════════════════════
+function openSettings(){
+  document.getElementById('key-input').value=apiKey;
+  document.getElementById('sh-err').textContent='';
+  document.getElementById('settings').classList.add('open');
+  document.getElementById('settings-overlay').classList.add('on');
+}
+function closeSettings(){
+  document.getElementById('settings').classList.remove('open');
+  document.getElementById('settings-overlay').classList.remove('on');
+}
+function saveKey(){
+  const k=document.getElementById('key-input').value.trim();
+  if(!k.startsWith('sk-ant')){
+    document.getElementById('sh-err').textContent='Key must start with sk-ant…';
+    return;
+  }
+  apiKey=k;
+  localStorage.setItem('poseai_key',k);
+  closeSettings();
+  // Switch to coach mode
+  stopAutoMode();
+  document.getElementById('coach-panel').classList.add('on');
+  document.getElementById('gps-panel').classList.remove('on');
+  document.getElementById('idle-msg').style.display='block';
+  document.getElementById('primary-text').style.display='none';
+  document.getElementById('tip-rows').style.display='none';
+  toast('✓ AI Coach enabled! Tap Analyze to start');
+}
+function clearKey(){
+  apiKey='';
+  localStorage.removeItem('poseai_key');
+  stopAutoMode();
+  closeSettings();
+  document.getElementById('gps-panel').classList.add('on');
+  document.getElementById('coach-panel').classList.remove('on');
+  hideAllArrows();
+  document.getElementById('score-badge').classList.remove('on');
+  toast('Switched to GPS pose mode');
+}
+
+// ════════════════════════════════════════════════════════════
+// AI ANALYSIS PIPELINE
+// ════════════════════════════════════════════════════════════
+const COACH_PROMPT=`You are a real-time photography coach analyzing a camera viewfinder frame. Return ONLY valid JSON with no markdown or explanation:
+{
+  "scene": "<2-3 word description of what you see>",
+  "score": <composition score 1-10>,
+  "primary": "<single most impactful action to take RIGHT NOW, max 7 words>",
+  "move": "left|right|up|down|back|forward|none",
+  "move_amount": "slightly|moderately|a_lot",
+  "lighting": "good|backlit|harsh|low",
+  "framing": "good|too_close|too_far|tilted",
+  "subject_found": true/false,
+  "pose_tip": "<pose for person if visible, max 10 words, else null>",
+  "camera_tip": "<specific camera angle tip for photographer, max 10 words>"
+}
+Focus on the single most impactful change. If lighting is bad, say how to fix it. If a person is present, prioritize their positioning.`;
+
+function captureFrameBase64(maxW=768){
+  const v=document.getElementById('cam');
+  const c=document.getElementById('cap-canvas');
+  const scale=Math.min(1,maxW/v.videoWidth);
+  c.width=Math.round(v.videoWidth*scale);
+  c.height=Math.round(v.videoHeight*scale);
+  const ctx=c.getContext('2d');
+  if(facing==='user'){ctx.translate(c.width,0);ctx.scale(-1,1);}
+  ctx.drawImage(v,0,0,c.width,c.height);
+  // Return just the base64 data, no prefix
+  return c.toDataURL('image/jpeg',0.7).split(',')[1];
+}
+
+async function callClaude(imgB64){
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:300,
+      messages:[{
+        role:'user',
+        content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imgB64}},
+          {type:'text',text:COACH_PROMPT}
+        ]
+      }]
+    })
+  });
+  if(res.status===401){throw new Error('INVALID_KEY');}
+  if(res.status===429){throw new Error('RATE_LIMIT');}
+  if(!res.ok){throw new Error('API_ERROR_'+res.status);}
+  const d=await res.json();
+  const raw=d.content[0].text.trim();
+  // Strip any markdown fences if present
+  const clean=raw.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
+  return JSON.parse(clean);
+}
+
+async function runAnalysis(){
+  if(analyzing)return;
+  if(!apiKey){toast('Add your API key in Settings');return;}
+  analyzing=true;
+  document.getElementById('analyzing').classList.add('on');
+  try{
+    const img=captureFrameBase64();
+    const result=await callClaude(img);
+    lastAnalysis=result;
+    updateCoachUI(result);
+  }catch(e){
+    console.error(e);
+    if(e.message==='INVALID_KEY'){toast('⚠️ Invalid API key — check Settings');stopAutoMode();}
+    else if(e.message==='RATE_LIMIT'){toast('⏳ Rate limit hit — slowing down');if(autoTimer){clearInterval(autoTimer);autoTimer=setTimeout(()=>{if(autoMode)autoTimer=setInterval(runAnalysis,8000);},8000);}}
+    else{toast('Analysis failed — retrying');}
+  }finally{
+    analyzing=false;
+    document.getElementById('analyzing').classList.remove('on');
   }
 }
 
-function toggleGrid() {
-  gridOn = !gridOn;
-  document.getElementById('grid').classList.toggle('on', gridOn);
-  document.getElementById('grid-btn').classList.toggle('on', gridOn);
+function updateCoachUI(r){
+  // Primary instruction
+  const dirEmoji={left:'← ',right:'→ ',up:'↑ ',down:'↓ ',back:'⟵ ',forward:'⟶ ',none:''};
+  const primary=(dirEmoji[r.move]||'')+r.primary;
+  document.getElementById('primary-text').textContent=primary;
+  document.getElementById('primary-text').style.display='block';
+  document.getElementById('idle-msg').style.display='none';
+
+  // Tips
+  const hasTips=r.pose_tip||r.camera_tip;
+  document.getElementById('tip-rows').style.display=hasTips?'block':'none';
+  if(r.pose_tip){
+    document.getElementById('pose-tip-row').style.display='flex';
+    document.getElementById('pose-tip-txt').textContent=r.pose_tip;
+  }else{
+    document.getElementById('pose-tip-row').style.display='none';
+  }
+  if(r.camera_tip){
+    document.getElementById('cam-tip-row').style.display='flex';
+    document.getElementById('cam-tip-txt').textContent=r.camera_tip;
+  }else{
+    document.getElementById('cam-tip-row').style.display='none';
+  }
+
+  // Meta chips
+  const meta=document.getElementById('coach-meta');
+  meta.innerHTML='';
+  const chips=[];
+  if(r.scene)chips.push({t:r.scene,c:'chip-good'});
+  const lightClass={good:'chip-good',backlit:'chip-bad',harsh:'chip-warn',low:'chip-warn'};
+  const lightLabel={good:'☀️ Good light',backlit:'🌑 Backlit!',harsh:'🌞 Harsh light',low:'🌑 Low light'};
+  if(r.lighting)chips.push({t:lightLabel[r.lighting]||r.lighting,c:lightClass[r.lighting]||'chip-warn'});
+  const frameClass={good:'chip-good',too_close:'chip-bad',too_far:'chip-warn',tilted:'chip-bad'};
+  const frameLabel={good:'✓ Good framing',too_close:'Too close',too_far:'Too far',tilted:'Tilted!'};
+  if(r.framing&&r.framing!=='good')chips.push({t:frameLabel[r.framing]||r.framing,c:frameClass[r.framing]||'chip-warn'});
+  chips.forEach(({t,c})=>{const el=document.createElement('span');el.className='meta-chip '+c;el.textContent=t;meta.appendChild(el);});
+
+  // Score
+  updateScore(r.score);
+
+  // Directional arrows
+  showArrow(r.move);
+
+  // Silhouette update if on
+  if(silOn&&r.pose_tip)updateSilhouette();
+
+  // Update location pill with scene
+  if(r.scene){
+    document.getElementById('loc-name').textContent='AI: '+r.scene;
+    document.getElementById('loc-icon').textContent='🎯';
+    document.getElementById('loc-badge').style.display='none';
+  }
 }
 
-// =====================================================================
-// LOCATION
-// =====================================================================
-function detectLocation() {
-  return new Promise((res, rej) => {
-    if (!navigator.geolocation) { rej(new Error('no geolocation')); return; }
+async function manualAnalyze(){await runAnalysis();}
+
+// AUTO MODE
+function toggleAuto(){
+  autoMode=!autoMode;
+  const btn=document.getElementById('auto-btn');
+  document.getElementById('auto-label').textContent=autoMode?'AUTO ●':'AUTO';
+  btn.classList.toggle('active',autoMode);
+  btn.classList.toggle('pulsing',autoMode);
+  if(autoMode)startAutoMode();else stopAutoMode();
+}
+function startAutoMode(){
+  if(autoTimer)clearInterval(autoTimer);
+  runAnalysis();
+  autoTimer=setInterval(runAnalysis,5000);
+}
+function stopAutoMode(){
+  autoMode=false;
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  const btn=document.getElementById('auto-btn');
+  btn.classList.remove('active','pulsing');
+  document.getElementById('auto-label').textContent='AUTO';
+}
+
+// ════════════════════════════════════════════════════════════
+// ARROWS
+// ════════════════════════════════════════════════════════════
+const ARROWS={left:'arr-l',right:'arr-r',up:'arr-u',down:'arr-d',back:'arr-l',forward:'arr-r'};
+function showArrow(dir){
+  hideAllArrows();
+  if(dir&&dir!=='none'&&ARROWS[dir]){
+    document.getElementById(ARROWS[dir]).classList.add('on');
+    setTimeout(hideAllArrows,4000);
+  }
+}
+function hideAllArrows(){
+  ['arr-l','arr-r','arr-u','arr-d'].forEach(id=>document.getElementById(id).classList.remove('on'));
+}
+
+// ════════════════════════════════════════════════════════════
+// SCORE
+// ════════════════════════════════════════════════════════════
+function updateScore(s){
+  if(!s)return;
+  const badge=document.getElementById('score-badge');
+  badge.classList.add('on');
+  document.getElementById('score-num').textContent=s+'/10';
+  const filled=Math.round(s);
+  document.getElementById('score-dots').textContent='●'.repeat(filled)+'○'.repeat(10-filled);
+}
+
+// ════════════════════════════════════════════════════════════
+// GPS LOCATION & POSES
+// ════════════════════════════════════════════════════════════
+function detectLocation(){
+  return new Promise((res,rej)=>{
+    if(!navigator.geolocation){rej(new Error('no geo'));return;}
     navigator.geolocation.getCurrentPosition(
-      async pos => {
-        try {
-          await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-          res();
-        } catch(e) { rej(e); }
-      },
-      err => rej(err),
-      { timeout: 12000, maximumAge: 60000, enableHighAccuracy: false }
+      async pos=>{try{await reverseGeocode(pos.coords.latitude,pos.coords.longitude);res();}catch(e){rej(e);}},
+      err=>rej(err),{timeout:12000,maximumAge:60000,enableHighAccuracy:false}
     );
   });
 }
-
-async function reverseGeocode(lat, lon) {
-  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=17`;
-  const r = await fetch(url, { headers: { 'Accept-Language': 'en' } });
-  if (!r.ok) throw new Error('Nominatim failed');
-  const d = await r.json();
-  const cat = classify(d);
-  const addr = d.address || {};
-  const name = addr.suburb || addr.neighbourhood || addr.city_district ||
-               addr.city || addr.town || addr.village ||
-               (d.display_name || '').split(',')[0] || 'Unknown';
-  setLocDisplay(name, cat);
+async function reverseGeocode(lat,lon){
+  const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=17`,{headers:{'Accept-Language':'en'}});
+  if(!r.ok)throw new Error('Nominatim failed');
+  const d=await r.json();
+  const cat=classifyGPS(d);
+  const addr=d.address||{};
+  const name=addr.suburb||addr.neighbourhood||addr.city_district||addr.city||addr.town||addr.village||(d.display_name||'').split(',')[0]||'Unknown';
+  setLocDisplay(name,cat);
   applyCategory(cat);
 }
-
-function classify(d) {
-  const s = (
-    JSON.stringify(d.address || {}) + ' ' +
-    (d.display_name || '') + ' ' +
-    (d.type || '') + ' ' +
-    (d.class || '')
-  ).toLowerCase();
-
-  if (['beach','coastline','bay','cove','shore','sea','ocean','coast'].some(k => s.includes(k)))
-    return 'beach';
-  if (['mountain','peak','cliff','ridge','hill','summit','trail','hiking','trek'].some(k => s.includes(k)))
-    return 'mountain';
-  if (['park','garden','forest','wood','nature_reserve','national_park','meadow','heath'].some(k => s.includes(k)))
-    return 'nature';
-  if (['museum','gallery','monument','historic','castle','ruins','cathedral','temple','shrine','place_of_worship','heritage'].some(k => s.includes(k)))
-    return 'cultural';
-  if (['restaurant','cafe','bar','pub','food','bakery','coffee','bistro','diner','fast_food'].some(k => s.includes(k)))
-    return 'cafe';
-  if (['mall','shop','market','retail','boutique','supermarket','bazaar'].some(k => s.includes(k)))
-    return 'shopping';
-  return 'urban';
+function classifyGPS(d){
+  const s=(JSON.stringify(d.address||{})+' '+(d.display_name||'')+' '+(d.type||'')+' '+(d.class||'')).toLowerCase();
+  if(['beach','coastline','bay','cove','shore','sea','ocean'].some(k=>s.includes(k)))return'beach';
+  if(['mountain','peak','cliff','ridge','hill','summit','trek','hiking'].some(k=>s.includes(k)))return'mountain';
+  if(['park','garden','forest','wood','nature_reserve','national_park'].some(k=>s.includes(k)))return'nature';
+  if(['museum','gallery','monument','historic','castle','cathedral','temple','shrine'].some(k=>s.includes(k)))return'cultural';
+  if(['restaurant','cafe','bar','pub','food','bakery','coffee','bistro'].some(k=>s.includes(k)))return'cafe';
+  if(['mall','shop','market','retail','boutique','supermarket'].some(k=>s.includes(k)))return'shopping';
+  return'urban';
 }
-
-function setLocDisplay(name, cat) {
-  document.getElementById('loc-name').textContent = name;
-  const badge = document.getElementById('loc-badge');
-  const icon  = document.getElementById('loc-icon');
-  if (cat && CAT_META[cat]) {
-    badge.textContent = CAT_META[cat].label;
-    badge.style.display = 'inline';
-    icon.textContent = CAT_META[cat].icon;
-  } else {
-    badge.style.display = 'none';
-  }
+function setLocDisplay(name,cat){
+  document.getElementById('loc-name').textContent=name;
+  const badge=document.getElementById('loc-badge');
+  const icon=document.getElementById('loc-icon');
+  if(cat&&CAT_META[cat]){badge.textContent=CAT_META[cat].label;badge.style.display='inline';icon.textContent=CAT_META[cat].icon;}
+  else{badge.style.display='none';}
 }
-
-// =====================================================================
-// POSES
-// =====================================================================
-function applyCategory(cat) {
-  category = POSES[cat] ? cat : 'default';
-  poseIdx = 0;
+function applyCategory(cat){
+  category=POSES[cat]?cat:'default';
+  poseIdx=0;
   renderCard(null);
   renderDots();
+  if(silOn)updateSilhouette();
 }
-
-function renderCard(dir) {
-  const wrap = document.getElementById('pose-wrap');
-  const pose = POSES[category][poseIdx];
-  const total = POSES[category].length;
-
-  wrap.innerHTML = '';
-  const card = document.createElement('div');
-  card.className = 'pose-card' + (dir ? ` slide-in-${dir}` : '');
-  card.innerHTML = `
-    <div class="card-header">
+function renderCard(dir){
+  const wrap=document.getElementById('pose-wrap');
+  const pose=POSES[category][poseIdx];
+  const total=POSES[category].length;
+  wrap.innerHTML='';
+  const card=document.createElement('div');
+  card.className='pose-card'+(dir?` slide-in-${dir}`:'');
+  card.innerHTML=`
+    <div class="card-top">
       <div class="pose-name">${pose.name}</div>
       <div class="pose-mood">${pose.mood}</div>
     </div>
-    <div class="pose-tip">${pose.tip}</div>
-    <div class="card-footer">
-      <div class="pose-counter">${poseIdx + 1} of ${total}</div>
-      <div class="refresh-btn" onclick="shufflePose()">↻ Shuffle</div>
+    <div class="subj-tip">${pose.tip}</div>
+    <hr class="divider">
+    <div class="ptip-toggle" id="ptip-toggle" onclick="togglePTip()">
+      <span class="ptip-label">📷 Photographer Tips</span>
+      <span class="ptip-arr">▾</span>
     </div>
-  `;
+    <div class="ptip-sec" id="ptip-sec">
+      <div class="ptip-inner">
+        <div class="cam-diag">${buildDiagram(pose.cam)}<div class="cam-lbls"><div class="cam-lbl">Height:<span>${pose.cam.h.toUpperCase()}</span></div><div class="cam-lbl">Zoom:<span>${pose.cam.z.toUpperCase()}</span></div></div></div>
+        <div class="ptip-txt">${pose.pTip}</div>
+      </div>
+    </div>
+    <div class="card-ft">
+      <div class="pose-ctr">${poseIdx+1} of ${total}</div>
+      <div class="shuf-btn" onclick="shufflePose()">↻ Shuffle</div>
+    </div>`;
   wrap.appendChild(card);
-
-  // Swipe support
-  card.addEventListener('touchstart', e => {
-    swipeX0 = e.touches[0].clientX;
-    swipeY0 = e.touches[0].clientY;
-  }, { passive: true });
-  card.addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].clientX - swipeX0;
-    const dy = e.changedTouches[0].clientY - swipeY0;
-    if (Math.abs(dx) < 38 || Math.abs(dy) > Math.abs(dx)) return;
-    dx < 0 ? nextPose() : prevPose();
-    // Hide swipe hint after first swipe
-    if (!hintShown) {
-      hintShown = true;
-      document.getElementById('swipe-hint').style.opacity = '0';
-    }
-  }, { passive: true });
+  card.addEventListener('touchstart',e=>{swipeX0=e.touches[0].clientX;swipeY0=e.touches[0].clientY;},{passive:true});
+  card.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-swipeX0,dy=e.changedTouches[0].clientY-swipeY0;
+    if(Math.abs(dx)<40||Math.abs(dy)>Math.abs(dx))return;
+    dx<0?nextPose():prevPose();
+  },{passive:true});
 }
-
-function renderDots() {
-  const total = POSES[category].length;
-  const nav = document.getElementById('dots');
-  nav.innerHTML = '';
-  for (let i = 0; i < total; i++) {
-    const d = document.createElement('div');
-    d.className = 'dot' + (i === poseIdx ? ' on' : '');
-    d.onclick = () => goTo(i);
+function buildDiagram(cam){
+  const px=cam.p==='left'?17:cam.p==='right'?83:50;
+  const py=(cam.h==='high'||cam.h==='overhead')?13:cam.h==='low'?57:35;
+  return`<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="2" width="96" height="66" rx="4" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="1.5"/>
+    <line x1="35" y1="2" x2="35" y2="68" stroke="rgba(255,255,255,.1)" stroke-width=".8"/>
+    <line x1="65" y1="2" x2="65" y2="68" stroke="rgba(255,255,255,.1)" stroke-width=".8"/>
+    <line x1="2" y1="24" x2="98" y2="24" stroke="rgba(255,255,255,.1)" stroke-width=".8"/>
+    <line x1="2" y1="46" x2="98" y2="46" stroke="rgba(255,255,255,.1)" stroke-width=".8"/>
+    <circle cx="${px}" cy="${py}" r="6" fill="rgba(255,179,71,.85)"/>
+    <circle cx="${px}" cy="${py}" r="10" fill="none" stroke="rgba(255,179,71,.35)" stroke-width="1"/>
+    <text x="50" y="77" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.28)" font-family="sans-serif">frame placement</text>
+  </svg>`;
+}
+function togglePTip(){
+  const t=document.getElementById('ptip-toggle'),s=document.getElementById('ptip-sec');
+  if(t&&s){t.classList.toggle('open');s.classList.toggle('open');}
+}
+function renderDots(){
+  const total=POSES[category].length,nav=document.getElementById('dots');
+  nav.innerHTML='';
+  for(let i=0;i<total;i++){
+    const d=document.createElement('div');
+    d.className='dot'+(i===poseIdx?' on':'');
+    d.onclick=()=>goTo(i);
     nav.appendChild(d);
   }
 }
+function nextPose(){if(poseIdx<POSES[category].length-1){poseIdx++;renderCard('right');renderDots();}else bounce('right');if(silOn)updateSilhouette();}
+function prevPose(){if(poseIdx>0){poseIdx--;renderCard('left');renderDots();}else bounce('left');if(silOn)updateSilhouette();}
+function goTo(i){const dir=i>poseIdx?'right':'left';poseIdx=i;renderCard(dir);renderDots();if(silOn)updateSilhouette();}
+function shufflePose(){const total=POSES[category].length;let n;do{n=Math.floor(Math.random()*total);}while(n===poseIdx&&total>1);const dir=n>poseIdx?'right':'left';poseIdx=n;renderCard(dir);renderDots();if(silOn)updateSilhouette();}
+function bounce(side){const c=document.querySelector('.pose-card');if(!c)return;c.style.transform=`translateX(${side==='right'?'14px':'-14px'})`;setTimeout(()=>c.style.transform='',200);}
 
-function nextPose() {
-  const total = POSES[category].length;
-  if (poseIdx < total - 1) { poseIdx++; renderCard('right'); renderDots(); }
-  else bounce('right');
+// ════════════════════════════════════════════════════════════
+// SILHOUETTE
+// ════════════════════════════════════════════════════════════
+function toggleSil(){
+  silOn=!silOn;
+  document.getElementById('sil-wrap').classList.toggle('on',silOn);
+  document.getElementById('sil-btn').classList.toggle('active',silOn);
+  if(silOn)updateSilhouette();
+}
+function updateSilhouette(){
+  const pose=POSES[category][poseIdx];
+  document.getElementById('sil-wrap').innerHTML=SILS[pose.sil]||SILS.portrait;
 }
 
-function prevPose() {
-  if (poseIdx > 0) { poseIdx--; renderCard('left'); renderDots(); }
-  else bounce('left');
-}
-
-function goTo(i) {
-  const dir = i > poseIdx ? 'right' : 'left';
-  poseIdx = i;
-  renderCard(dir);
-  renderDots();
-}
-
-function shufflePose() {
-  const total = POSES[category].length;
-  let next;
-  do { next = Math.floor(Math.random() * total); } while (next === poseIdx && total > 1);
-  const dir = next > poseIdx ? 'right' : 'left';
-  poseIdx = next;
-  renderCard(dir);
-  renderDots();
-}
-
-function bounce(side) {
-  const card = document.querySelector('.pose-card');
-  if (!card) return;
-  card.style.transform = `translateX(${side === 'right' ? '14px' : '-14px'})`;
-  setTimeout(() => card.style.transform = '', 200);
-}
-
-// =====================================================================
+// ════════════════════════════════════════════════════════════
 // CAPTURE
-// =====================================================================
-function capturePhoto() {
-  // Flash
-  const fl = document.getElementById('flash');
-  fl.classList.add('on');
-  setTimeout(() => fl.classList.remove('on'), 180);
-
-  const video = document.getElementById('camera-feed');
-  const canvas = document.getElementById('cap-canvas');
-  canvas.width  = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-
-  // Mirror front camera to match what user sees
-  if (facing === 'user') {
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-  }
-
-  ctx.drawImage(video, 0, 0);
-  capturedUrl = canvas.toDataURL('image/jpeg', 0.95);
-
-  document.getElementById('preview-img').src = capturedUrl;
+// ════════════════════════════════════════════════════════════
+function capturePhoto(){
+  const fl=document.getElementById('flash');
+  fl.classList.add('on');setTimeout(()=>fl.classList.remove('on'),180);
+  const v=document.getElementById('cam'),c=document.getElementById('cap-canvas');
+  c.width=v.videoWidth;c.height=v.videoHeight;
+  const ctx=c.getContext('2d');
+  if(facing==='user'){ctx.translate(c.width,0);ctx.scale(-1,1);}
+  ctx.drawImage(v,0,0);
+  capturedUrl=c.toDataURL('image/jpeg',0.95);
+  document.getElementById('preview-img').src=capturedUrl;
   document.getElementById('preview').classList.add('on');
 }
+function openFull(){
+  if(!capturedUrl)return;
+  const w=window.open('','_blank');
+  w.document.write('<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;}img{max-width:100%;}</style><img src="'+capturedUrl+'">');
+}
+function closePreview(){document.getElementById('preview').classList.remove('on');capturedUrl=null;}
 
-function openFull() {
-  if (!capturedUrl) return;
-  // Opens in new tab on iOS — user can long-press → Add to Photos
-  const w = window.open('', '_blank');
-  w.document.write(
-    `<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;}img{max-width:100%;}</style>` +
-    `<img src="${capturedUrl}">`
-  );
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+function toast(msg,ms=2800){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('on'),ms);
 }
 
-function closePreview() {
-  document.getElementById('preview').classList.remove('on');
-  capturedUrl = null;
-}
-
-// =====================================================================
-// VISIBILITY (re-init camera if tab regains focus)
-// =====================================================================
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && stream) {
-    const tracks = stream.getVideoTracks();
-    if (tracks.length && tracks[0].readyState === 'ended') {
-      startCamera().catch(console.error);
-    }
-  }
+// ════════════════════════════════════════════════════════════
+// VISIBILITY RECOVERY
+// ════════════════════════════════════════════════════════════
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&stream){const tr=stream.getVideoTracks();if(tr.length&&tr[0].readyState==='ended')startCamera().catch(()=>{});}
 });
-
-// =====================================================================
-// SERVICE WORKER
-// =====================================================================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  });
-}
-
-// =====================================================================
-// START
-// =====================================================================
-document.addEventListener('DOMContentLoaded', boot);
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+document.addEventListener('DOMContentLoaded',boot);
 </script>
 </body>
 </html>
