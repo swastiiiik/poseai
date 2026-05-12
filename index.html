@@ -431,10 +431,10 @@ html,body{height:100%;width:100%;overflow:hidden;background:#000;
 <div id="settings">
   <div class="sh-handle"></div>
   <div class="sh-title">AI Camera Coach</div>
-  <div class="sh-sub">Enter your Anthropic API key to enable real-time AI coaching — it analyzes your actual camera feed and tells you exactly where to move, how to pose, and how to shoot.</div>
-  <div class="sh-label">Anthropic API Key</div>
-  <input type="password" id="key-input" placeholder="sk-ant-api03-…" autocomplete="off" autocorrect="off" spellcheck="false">
-  <div class="sh-hint">Get a free key at <strong>console.anthropic.com</strong> → API Keys. Your key is stored only on this device.</div>
+  <div class="sh-sub">Enter your Google Gemini API key to enable real-time AI coaching — it analyzes your actual camera feed and tells you exactly where to move, how to pose, and how to shoot. <strong>Completely free.</strong></div>
+  <div class="sh-label">Google Gemini API Key</div>
+  <input type="password" id="key-input" placeholder="AIzaSy…" autocomplete="off" autocorrect="off" spellcheck="false">
+  <div class="sh-hint">Get a free key in 30 seconds: go to <strong>aistudio.google.com</strong> → sign in → click <strong>Get API Key</strong> → Create API key. No credit card needed. Free tier = 15 analyses/min.</div>
   <div class="sh-err" id="sh-err"></div>
   <button class="sh-btn sh-save" onclick="saveKey()">Save & Start Coaching →</button>
   <button class="sh-btn sh-clear" onclick="clearKey()">Clear Key (use GPS mode only)</button>
@@ -791,8 +791,8 @@ function closeSettings(){
 }
 function saveKey(){
   const k=document.getElementById('key-input').value.trim();
-  if(!k.startsWith('sk-ant')){
-    document.getElementById('sh-err').textContent='Key must start with sk-ant…';
+  if(!k||k.length<10){
+    document.getElementById('sh-err').textContent='Please enter a valid API key';
     return;
   }
   apiKey=k;
@@ -850,33 +850,26 @@ function captureFrameBase64(maxW=768){
   return c.toDataURL('image/jpeg',0.7).split(',')[1];
 }
 
-async function callClaude(imgB64){
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
+async function callGemini(imgB64){
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const res=await fetch(url,{
     method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key':apiKey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
+    headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
-      model:'claude-sonnet-4-20250514',
-      max_tokens:300,
-      messages:[{
-        role:'user',
-        content:[
-          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imgB64}},
-          {type:'text',text:COACH_PROMPT}
+      contents:[{
+        parts:[
+          {inline_data:{mime_type:'image/jpeg',data:imgB64}},
+          {text:COACH_PROMPT}
         ]
-      }]
+      }],
+      generationConfig:{maxOutputTokens:300,temperature:0.1}
     })
   });
-  if(res.status===401){throw new Error('INVALID_KEY');}
+  if(res.status===400||res.status===401||res.status===403){throw new Error('INVALID_KEY');}
   if(res.status===429){throw new Error('RATE_LIMIT');}
   if(!res.ok){throw new Error('API_ERROR_'+res.status);}
   const d=await res.json();
-  const raw=d.content[0].text.trim();
-  // Strip any markdown fences if present
+  const raw=d.candidates[0].content.parts[0].text.trim();
   const clean=raw.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
   return JSON.parse(clean);
 }
@@ -888,7 +881,7 @@ async function runAnalysis(){
   document.getElementById('analyzing').classList.add('on');
   try{
     const img=captureFrameBase64();
-    const result=await callClaude(img);
+    const result=await callGemini(img);
     lastAnalysis=result;
     updateCoachUI(result);
   }catch(e){
